@@ -79,21 +79,21 @@ claude mcp add odoo-mycompany \
 ```jsonc
 {
   "mcpServers": {
-    "odoo-interhaus": {
+    "odoo-company-a": {
       "command": "uvx",
       "args": ["odoo-sh-mcp"],
       "env": {
-        "ODOO_URL": "https://interhaus.odoo.com",
-        "ODOO_DB": "interhaus",
+        "ODOO_URL": "https://company-a.odoo.com",
+        "ODOO_DB": "company-a",
         "ODOO_API_KEY": "xxx"
       }
     },
-    "odoo-bokato": {
+    "odoo-company-b": {
       "command": "uvx",
       "args": ["odoo-sh-mcp"],
       "env": {
-        "ODOO_URL": "https://bokato.odoo.com",
-        "ODOO_DB": "bokato",
+        "ODOO_URL": "https://company-b.odoo.com",
+        "ODOO_DB": "company-b",
         "ODOO_API_KEY": "yyy"
       }
     }

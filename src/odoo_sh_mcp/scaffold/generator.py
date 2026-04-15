@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import os
+import re
 import textwrap
+from html import escape as xml_escape
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +29,11 @@ FIELD_TYPE_MAP = {
     "binary": "fields.Binary",
 }
 
+_VALID_MODULE_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
+_VALID_MODEL_NAME = re.compile(r"^[a-z][a-z0-9_.]*$")
+_VALID_FIELD_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
+_VALID_POSITION = {"after", "before", "inside", "replace"}
+
 
 def _class_name(model_name: str) -> str:
     """'sale.order.line' → 'SaleOrderLine'"""
@@ -37,6 +43,11 @@ def _class_name(model_name: str) -> str:
 def _model_to_filename(model_name: str) -> str:
     """'sale.order.line' → 'sale_order_line'"""
     return model_name.replace(".", "_")
+
+
+def _escape_py_string(value: str) -> str:
+    """Escape a value for safe embedding inside a single-quoted Python string literal."""
+    return value.replace("\\", "\\\\").replace("'", "\\'")
 
 
 # ---------------------------------------------------------------------------
@@ -51,7 +62,17 @@ def scaffold_module(name: str, path: str) -> dict[str, Any]:
         name: Module technical name, e.g. 'my_custom_module'
         path: Parent directory where the module folder will be created
     """
-    module_dir = Path(path) / name
+    if not _VALID_MODULE_NAME.match(name):
+        raise ValueError(
+            f"Invalid module name '{name}'. Must start with a letter and contain only "
+            "lowercase letters, digits, and underscores."
+        )
+
+    module_dir = Path(path).resolve() / name
+    # Ensure the resolved path stays inside the intended parent
+    if not str(module_dir).startswith(str(Path(path).resolve())):
+        raise ValueError(f"Invalid path: '{name}' resolves outside the target directory.")
+
     if module_dir.exists():
         raise FileExistsError(f"Directory already exists: {module_dir}")
 
@@ -67,7 +88,7 @@ def scaffold_module(name: str, path: str) -> dict[str, Any]:
         "__manifest__.py",
         f"""\
         {{
-            'name': '{name}',
+            'name': '{_escape_py_string(name)}',
             'version': '17.0.1.0.0',
             'category': 'Uncategorized',
             'summary': '',
@@ -109,6 +130,12 @@ def create_model_file(
         fields:      List of field dicts with keys: name, type, string,
                      and optionally: required, readonly, comodel_name, help
     """
+    if not _VALID_MODEL_NAME.match(model_name):
+        raise ValueError(
+            f"Invalid model name '{model_name}'. Must start with a letter and contain only "
+            "lowercase letters, digits, dots, and underscores."
+        )
+
     module_dir = Path(module_path)
     if not module_dir.exists():
         raise FileNotFoundError(f"Module path does not exist: {module_path}")
@@ -122,27 +149,32 @@ def create_model_file(
         "",
         "",
         f"class {class_name}(models.Model):",
-        f"    _name = '{model_name}'",
-        f"    _description = '{class_name}'",
+        f"    _name = '{_escape_py_string(model_name)}'",
+        f"    _description = '{_escape_py_string(class_name)}'",
         "",
     ]
 
     for f in fields:
         fname = f["name"]
+        if not _VALID_FIELD_NAME.match(fname):
+            raise ValueError(
+                f"Invalid field name '{fname}'. Must start with a letter and contain only "
+                "lowercase letters, digits, and underscores."
+            )
         ftype = f.get("type", "char").lower()
         fclass = FIELD_TYPE_MAP.get(ftype, "fields.Char")
         attrs: list[str] = []
 
         if f.get("string"):
-            attrs.append(f"string='{f['string']}'")
+            attrs.append(f"string='{_escape_py_string(f['string'])}'")
         if f.get("required"):
             attrs.append("required=True")
         if f.get("readonly"):
             attrs.append("readonly=True")
         if f.get("comodel_name"):
-            attrs.append(f"comodel_name='{f['comodel_name']}'")
+            attrs.append(f"comodel_name='{_escape_py_string(f['comodel_name'])}'")
         if f.get("help"):
-            attrs.append(f"help='{f['help']}'")
+            attrs.append(f"help='{_escape_py_string(f['help'])}'")
 
         attr_str = ", ".join(attrs)
         lines.append(f"    {fname} = {fclass}({attr_str})")
@@ -179,19 +211,35 @@ def create_view_inheritance(
     if "." not in base_xmlid:
         raise ValueError(f"base_xmlid must be 'module.id', got: '{base_xmlid}'")
 
+    if position not in _VALID_POSITION:
+        raise ValueError(
+            f"Invalid position '{position}'. Must be one of: {', '.join(sorted(_VALID_POSITION))}"
+        )
+
+    if not fields_to_add:
+        raise ValueError("fields_to_add must not be empty.")
+
+    for f in fields_to_add:
+        fname = f["name"]
+        if not _VALID_FIELD_NAME.match(fname):
+            raise ValueError(
+                f"Invalid field name '{fname}'. Must start with a letter and contain only "
+                "lowercase letters, digits, and underscores."
+            )
+
     module_dir = Path(module_path)
     module_name = module_dir.name
     safe_id = base_xmlid.replace(".", "_")
-    inherit_id = f"{module_name}.{safe_id}_inherit"
+    inherit_id = f"{xml_escape(module_name)}.{safe_id}_inherit"
 
-    anchor = ref_field or (fields_to_add[0]["name"] if fields_to_add else "name")
+    anchor = ref_field or fields_to_add[0]["name"]
 
     indent = "                    "  # 20 spaces — inside <field name="anchor">
     field_lines: list[str] = []
     for f in fields_to_add:
-        fname = f["name"]
+        fname = xml_escape(f["name"])
         widget = f.get("widget", "")
-        widget_attr = f' widget="{widget}"' if widget else ""
+        widget_attr = f' widget="{xml_escape(widget)}"' if widget else ""
         field_lines.append(f'{indent}<field name="{fname}"{widget_attr}/>')
 
     fields_block = "\n".join(field_lines)
@@ -199,12 +247,12 @@ def create_view_inheritance(
     xml_content = (
         '<?xml version="1.0" encoding="utf-8"?>\n'
         "<odoo>\n"
-        f'    <record id="{inherit_id}" model="ir.ui.view">\n'
-        f'        <field name="name">{base_xmlid}.inherit.{module_name}</field>\n'
+        f'    <record id="{xml_escape(inherit_id)}" model="ir.ui.view">\n'
+        f'        <field name="name">{xml_escape(base_xmlid)}.inherit.{xml_escape(module_name)}</field>\n'
         f'        <field name="model"><!-- TODO: set model name --></field>\n'
-        f'        <field name="inherit_id" ref="{base_xmlid}"/>\n'
+        f'        <field name="inherit_id" ref="{xml_escape(base_xmlid)}"/>\n'
         f'        <field name="arch" type="xml">\n'
-        f'            <field name="{anchor}" position="{position}">\n'
+        f'            <field name="{xml_escape(anchor)}" position="{position}">\n'
         f"{fields_block}\n"
         f'            </field>\n'
         f'        </field>\n'

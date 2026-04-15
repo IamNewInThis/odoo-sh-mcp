@@ -35,7 +35,7 @@ def get_server_logs(
     if module:
         domain.append(("name", "ilike", module))
 
-    limit = min(limit, 200)
+    limit = max(1, min(limit, 200))
 
     records = client.search_read(
         "ir.logging",
