@@ -110,6 +110,52 @@ def search_records(
     return records
 
 
+def create_record(client: OdooClient, model: str, values: dict[str, Any]) -> dict[str, Any]:
+    """
+    Create a record in any Odoo model.
+
+    Args:
+        model:  Technical model name, e.g. 'res.partner'
+        values: Field values for create(), e.g. {'name': 'ACME'}
+    """
+    if not values:
+        raise ValueError("values cannot be empty.")
+
+    try:
+        record_id = client.execute(model, "create", [values])
+    except Exception as exc:
+        raise ValueError(f"Error creating record in '{model}': {exc}") from exc
+
+    return {
+        "model": model,
+        "id": record_id,
+        "created": True,
+    }
+
+
+def delete_record(client: OdooClient, model: str, record_id: int) -> dict[str, Any]:
+    """
+    Delete a single record from any Odoo model.
+
+    Args:
+        model:     Technical model name, e.g. 'res.partner'
+        record_id: Database ID of the record to delete
+    """
+    if not isinstance(record_id, int) or record_id <= 0:
+        raise ValueError("record_id must be a positive integer.")
+
+    try:
+        deleted = client.execute(model, "unlink", [[record_id]])
+    except Exception as exc:
+        raise ValueError(f"Error deleting record {record_id} from '{model}': {exc}") from exc
+
+    return {
+        "model": model,
+        "id": record_id,
+        "deleted": bool(deleted),
+    }
+
+
 def search_models(client: OdooClient, keyword: str, limit: int = 30) -> list[dict[str, Any]]:
     """
     Search for models whose technical name or description contains a keyword.

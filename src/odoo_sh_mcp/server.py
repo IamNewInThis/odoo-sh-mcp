@@ -118,6 +118,49 @@ TOOLS: list[Tool] = [
             "required": ["model"],
         },
     ),
+    Tool(
+        name="create_record",
+        description=(
+            "Create a record in any Odoo model using ORM create(). "
+            "Use carefully because this writes directly to the Odoo database."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "model": {
+                    "type": "string",
+                    "description": "Technical model name, e.g. 'res.partner', 'sale.order', 'account.move'",
+                },
+                "values": {
+                    "type": "object",
+                    "description": "Field values for create(), e.g. {\"name\": \"ACME\"}",
+                    "additionalProperties": True,
+                },
+            },
+            "required": ["model", "values"],
+        },
+    ),
+    Tool(
+        name="delete_record",
+        description=(
+            "Delete a single record from any Odoo model using ORM unlink(). "
+            "Use carefully because this permanently removes business data when Odoo allows it."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "model": {
+                    "type": "string",
+                    "description": "Technical model name, e.g. 'res.partner', 'sale.order', 'account.move'",
+                },
+                "record_id": {
+                    "type": "integer",
+                    "description": "Database ID of the record to delete",
+                },
+            },
+            "required": ["model", "record_id"],
+        },
+    ),
     # Tier 2 — Views
     Tool(
         name="get_views",
@@ -404,6 +447,10 @@ def _dispatch(client: OdooClient, name: str, args: dict[str, Any]) -> Any:
             limit=args.get("limit", 10),
             order=args.get("order", ""),
         )
+    if name == "create_record":
+        return orm.create_record(client, args["model"], args["values"])
+    if name == "delete_record":
+        return orm.delete_record(client, args["model"], args["record_id"])
 
     # Tier 2
     if name == "get_views":
