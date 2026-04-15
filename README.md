@@ -1,8 +1,6 @@
 # odoo-sh-mcp
 
-MCP server for Odoo SH that exposes **ORM metadata and framework introspection** to Claude Code via XML-RPC.
-
-Unlike existing Odoo MCP servers that read business records (customers, invoices), this one reads the **framework itself**: model fields, view XML, installed modules, and server logs.
+MCP server for Odoo SH that gives Claude Code full access to your Odoo instance via XML-RPC: inspect the ORM, read and write business records, manage modules, and tail server logs.
 
 ## What it does
 
@@ -24,6 +22,10 @@ No SSH. No direct DB access. Only the XML-RPC API Odoo already exposes.
 | `get_model_fields` | All fields for a model: type, label, required, relation, compute |
 | `get_model_info` | Model metadata: description, modules, inherited models |
 | `search_models` | Find models by partial name or description |
+| `search_records` | Search and read records from any model |
+| `create_record` | Create a new record in any model |
+| `update_record` | Update fields of an existing record by ID |
+| `delete_record` | Delete a record by ID |
 
 ### Tier 2 — View inspection
 | Tool | Description |
@@ -66,15 +68,32 @@ pip install odoo-sh-mcp
 ### Single instance
 
 ```bash
-claude mcp add odoo-mycompany \
-  --command uvx \
-  --args odoo-sh-mcp \
-  --env ODOO_URL=https://mycompany.odoo.com \
-  --env ODOO_DB=mycompany \
-  --env ODOO_API_KEY=your_key_here
+claude mcp add odoo-mycompany uvx odoo-sh-mcp \
+  -e ODOO_URL=https://mycompany.odoo.com \
+  -e ODOO_DB=mycompany \
+  -e ODOO_API_KEY=your_key_here \
+  -e ODOO_USERNAME=you@mycompany.com
 ```
 
-### Multi-instance (`.claude/mcp.json`)
+### Multi-instance
+
+Ejecuta el comando una vez por cada instancia:
+
+```bash
+claude mcp add odoo-company-a uvx odoo-sh-mcp \
+  -e ODOO_URL=https://company-a.odoo.com \
+  -e ODOO_DB=company-a \
+  -e ODOO_API_KEY=xxx \
+  -e ODOO_USERNAME=you@company-a.com
+
+claude mcp add odoo-company-b uvx odoo-sh-mcp \
+  -e ODOO_URL=https://company-b.odoo.com \
+  -e ODOO_DB=company-b \
+  -e ODOO_API_KEY=yyy \
+  -e ODOO_USERNAME=you@company-b.com
+```
+
+O edita directamente `.claude/mcp.json`:
 
 ```jsonc
 {
@@ -85,7 +104,8 @@ claude mcp add odoo-mycompany \
       "env": {
         "ODOO_URL": "https://company-a.odoo.com",
         "ODOO_DB": "company-a",
-        "ODOO_API_KEY": "xxx"
+        "ODOO_API_KEY": "xxx",
+        "ODOO_USERNAME": "you@company-a.com"
       }
     },
     "odoo-company-b": {
@@ -94,7 +114,8 @@ claude mcp add odoo-mycompany \
       "env": {
         "ODOO_URL": "https://company-b.odoo.com",
         "ODOO_DB": "company-b",
-        "ODOO_API_KEY": "yyy"
+        "ODOO_API_KEY": "yyy",
+        "ODOO_USERNAME": "you@company-b.com"
       }
     }
   }

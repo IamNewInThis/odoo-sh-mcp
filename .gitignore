@@ -9,3 +9,4 @@ build/
 .mypy_cache/
 *.so
 CLAUDE.md
+tests/test_connection.py

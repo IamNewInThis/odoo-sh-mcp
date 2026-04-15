@@ -133,6 +133,32 @@ def create_record(client: OdooClient, model: str, values: dict[str, Any]) -> dic
     }
 
 
+def update_record(client: OdooClient, model: str, record_id: int, values: dict[str, Any]) -> dict[str, Any]:
+    """
+    Update a record in any Odoo model using ORM write().
+
+    Args:
+        model:     Technical model name, e.g. 'res.partner'
+        record_id: Database ID of the record to update
+        values:    Field values to write, e.g. {'name': 'New Name'}
+    """
+    if not isinstance(record_id, int) or record_id <= 0:
+        raise ValueError("record_id must be a positive integer.")
+    if not values:
+        raise ValueError("values cannot be empty.")
+
+    try:
+        result = client.execute(model, "write", [[record_id], values])
+    except Exception as exc:
+        raise ValueError(f"Error updating record {record_id} in '{model}': {exc}") from exc
+
+    return {
+        "model": model,
+        "id": record_id,
+        "updated": bool(result),
+    }
+
+
 def delete_record(client: OdooClient, model: str, record_id: int) -> dict[str, Any]:
     """
     Delete a single record from any Odoo model.

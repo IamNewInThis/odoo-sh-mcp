@@ -141,6 +141,32 @@ TOOLS: list[Tool] = [
         },
     ),
     Tool(
+        name="update_record",
+        description=(
+            "Update an existing record in any Odoo model using ORM write(). "
+            "Use carefully because this writes directly to the Odoo database."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "model": {
+                    "type": "string",
+                    "description": "Technical model name, e.g. 'res.partner', 'sale.order'",
+                },
+                "record_id": {
+                    "type": "integer",
+                    "description": "Database ID of the record to update",
+                },
+                "values": {
+                    "type": "object",
+                    "description": "Field values to write, e.g. {\"name\": \"New Name\"}",
+                    "additionalProperties": True,
+                },
+            },
+            "required": ["model", "record_id", "values"],
+        },
+    ),
+    Tool(
         name="delete_record",
         description=(
             "Delete a single record from any Odoo model using ORM unlink(). "
@@ -449,6 +475,8 @@ def _dispatch(client: OdooClient, name: str, args: dict[str, Any]) -> Any:
         )
     if name == "create_record":
         return orm.create_record(client, args["model"], args["values"])
+    if name == "update_record":
+        return orm.update_record(client, args["model"], args["record_id"], args["values"])
     if name == "delete_record":
         return orm.delete_record(client, args["model"], args["record_id"])
 
