@@ -1,0 +1,41 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "odoo-sh-mcp"
+version = "0.1.0"
+description = "MCP server for Odoo SH — exposes ORM metadata, views, modules and logs to Claude Code via XML-RPC"
+readme = "README.md"
+license = { text = "MPL-2.0" }
+requires-python = ">=3.10"
+authors = [{ name = "Nicolas Ruiz", email = "nicoruiz2003@gmail.com" }]
+keywords = ["odoo", "mcp", "claude", "xml-rpc", "odoo-sh"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Libraries",
+]
+dependencies = [
+    "mcp>=1.0.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.scripts]
+odoo-sh-mcp = "odoo_sh_mcp.server:main"
+
+[project.urls]
+Homepage = "https://github.com/nicoruiz/odoo-sh-mcp"
+Issues = "https://github.com/nicoruiz/odoo-sh-mcp/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/odoo_sh_mcp"]
+
+[tool.hatch.envs.default]
+dependencies = ["pytest", "pytest-asyncio"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
