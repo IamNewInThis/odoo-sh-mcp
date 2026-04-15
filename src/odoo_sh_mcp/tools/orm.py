@@ -85,6 +85,31 @@ def get_model_info(client: OdooClient, model: str) -> dict[str, Any]:
     }
 
 
+def search_records(
+    client: OdooClient,
+    model: str,
+    domain: list[Any],
+    fields: list[str],
+    limit: int = 10,
+    order: str = "",
+) -> list[dict[str, Any]]:
+    """
+    Search and read records from any Odoo model.
+
+    Args:
+        model:  Technical model name, e.g. 'sale.order'
+        domain: Odoo domain filter, e.g. [['name', '=', 'S00482']]
+        fields: List of field names to return, e.g. ['name', 'partner_id', 'amount_total']
+        limit:  Max records to return (default 10)
+        order:  Sort order, e.g. 'date_order desc'
+    """
+    try:
+        records = client.search_read(model, domain, fields, limit=limit, order=order)
+    except Exception as exc:
+        raise ValueError(f"Error querying '{model}': {exc}") from exc
+    return records
+
+
 def search_models(client: OdooClient, keyword: str, limit: int = 30) -> list[dict[str, Any]]:
     """
     Search for models whose technical name or description contains a keyword.

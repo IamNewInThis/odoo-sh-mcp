@@ -81,6 +81,43 @@ TOOLS: list[Tool] = [
             "required": ["keyword"],
         },
     ),
+    Tool(
+        name="search_records",
+        description=(
+            "Search and read records from any Odoo model. "
+            "Use to query business data: orders, customers, invoices, products, etc."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "model": {
+                    "type": "string",
+                    "description": "Technical model name, e.g. 'sale.order', 'res.partner', 'account.move'",
+                },
+                "domain": {
+                    "type": "array",
+                    "description": "Odoo domain filter, e.g. [[\"name\", \"=\", \"S00482\"]]",
+                    "default": [],
+                },
+                "fields": {
+                    "type": "array",
+                    "description": "Fields to return, e.g. [\"name\", \"partner_id\", \"amount_total\"]. Empty = all fields.",
+                    "items": {"type": "string"},
+                    "default": [],
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Max records (default 10)",
+                    "default": 10,
+                },
+                "order": {
+                    "type": "string",
+                    "description": "Sort order, e.g. 'date_order desc'",
+                },
+            },
+            "required": ["model"],
+        },
+    ),
     # Tier 2 — Views
     Tool(
         name="get_views",
@@ -358,6 +395,15 @@ def _dispatch(client: OdooClient, name: str, args: dict[str, Any]) -> Any:
         return orm.get_model_info(client, args["model"])
     if name == "search_models":
         return orm.search_models(client, args["keyword"], limit=args.get("limit", 30))
+    if name == "search_records":
+        return orm.search_records(
+            client,
+            args["model"],
+            domain=args.get("domain", []),
+            fields=args.get("fields", []),
+            limit=args.get("limit", 10),
+            order=args.get("order", ""),
+        )
 
     # Tier 2
     if name == "get_views":

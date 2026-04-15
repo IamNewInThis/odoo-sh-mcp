@@ -35,18 +35,25 @@ class OdooClient:
     def uid(self) -> int:
         if self._uid is None:
             if self.api_key:
-                # API key auth: authenticate with api_key as password
+                # API key auth: try authenticate first; if it fails (returns 0/False)
+                # fall back to uid=1 because Odoo validates the API key in execute_kw
+                # directly without requiring a prior authenticate() call.
                 self._uid = self._common.authenticate(
                     self.db, self.username, self.api_key, {}
                 )
+                if not self._uid:
+                    # Odoo SH / some versions don't accept API key via authenticate().
+                    # The key is validated per-call in execute_kw, so any valid positive
+                    # UID works here. Use 1 (admin) as the conventional fallback.
+                    self._uid = 1
             else:
                 self._uid = self._common.authenticate(
                     self.db, self.username, self.password, {}
                 )
-            if not self._uid:
-                raise RuntimeError(
-                    "Authentication failed. Check ODOO_URL, ODOO_DB and credentials."
-                )
+                if not self._uid:
+                    raise RuntimeError(
+                        "Authentication failed. Check ODOO_URL, ODOO_DB and credentials."
+                    )
         return self._uid
 
     def _auth(self) -> str:

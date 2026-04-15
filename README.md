@@ -108,7 +108,7 @@ claude mcp add odoo-mycompany \
 | `ODOO_URL` | Yes | Instance URL, e.g. `https://mycompany.odoo.com` |
 | `ODOO_DB` | Yes | Database name |
 | `ODOO_API_KEY` | Yes* | API key (Settings > Technical > API Keys) |
-| `ODOO_USERNAME` | No | Username for API key auth (default: `admin`) |
+| `ODOO_USERNAME` | Yes* | email address for API key auth |
 | `ODOO_PASSWORD` | No | Password if not using API key |
 
 *API keys available in Odoo 14+. For older versions use `ODOO_USERNAME` + `ODOO_PASSWORD`.
