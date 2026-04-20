@@ -8,11 +8,13 @@ MCP server for Odoo SH that gives Claude Code full access to your Odoo instance 
 Claude Code (your machine)
        ↓ MCP protocol (stdio)
 odoo-sh-mcp (Python, local)
-       ↓ XML-RPC
-Odoo SH (remote instance)
+       ↓ XML-RPC              ↓ SSH / SFTP
+Odoo SH (remote instance) ←──────────────
 ```
 
-No SSH. No direct DB access. Only the XML-RPC API Odoo already exposes.
+Two transport layers:
+- **XML-RPC** — ORM introspection, records, modules, logs (no SSH needed)
+- **SSH / SFTP** — upload files directly to `~/src/user/`, run `odoo-update`, restart services, tail logs
 
 ## Tools
 
@@ -52,6 +54,15 @@ No SSH. No direct DB access. Only the XML-RPC API Odoo already exposes.
 | Tool | Description |
 |------|-------------|
 | `get_server_logs` | Fetch recent server logs from `ir.logging` |
+
+### Tier 6 — SSH / Odoo.sh direct access
+| Tool | Description |
+|------|-------------|
+| `ssh_exec` | Execute any shell command on the Odoo.sh server |
+| `ssh_upload_file` | Upload a local file to `~/src/user/<module>/` via SFTP |
+| `ssh_update_module` | Run `odoo-update <module>` on the server |
+| `ssh_restart` | Restart Odoo.sh services via `odoosh-restart` |
+| `ssh_read_log` | Tail `~/logs/odoo.log` from the server |
 
 ## Installation
 
@@ -131,8 +142,60 @@ O edita directamente `.claude/mcp.json`:
 | `ODOO_API_KEY` | Yes* | API key (Settings > Technical > API Keys) |
 | `ODOO_USERNAME` | Yes* | email address for API key auth |
 | `ODOO_PASSWORD` | No | Password if not using API key |
+| `ODOO_SH_SSH_HOST` | SSH only | Odoo.sh branch hostname, e.g. `mycompany-main-staging-XXXXX.dev.odoo.com` |
+| `ODOO_SH_SSH_USER` | SSH only | Odoo.sh build ID shown in the SSH command |
+| `ODOO_SH_SSH_KEY` | SSH only | Path to your private SSH key (default `~/.ssh/id_ed25519`) |
 
 *API keys available in Odoo 14+. For older versions use `ODOO_USERNAME` + `ODOO_PASSWORD`.
+
+### SSH setup (Tier 6 tools)
+
+SSH tools let Claude upload files and run commands directly on the Odoo.sh server, bypassing git commits for fast iteration.
+
+**1. Add your public key to Odoo.sh**
+
+Go to `https://www.odoo.sh` → click your avatar (top right) → **Change My Profile** → **SSH Keys** → paste the output of:
+
+```bash
+cat ~/.ssh/id_ed25519.pub
+```
+
+> Odoo.sh only accepts `ssh-rsa` and `ssh-ed25519` keys.
+
+**2. Load your key into the macOS SSH agent**
+
+```bash
+ssh-add --apple-use-keychain ~/.ssh/id_ed25519
+```
+
+**3. Find your branch SSH host**
+
+In the Odoo.sh dashboard, click your branch → **Connect** → copy the SSH command. It looks like:
+
+```
+ssh 31140548@mycompany-main-staging-31140548.dev.odoo.com
+```
+
+**4. Add to your `.env` or MCP config**
+
+```env
+ODOO_SH_SSH_HOST=mycompany-main-staging-31140548.dev.odoo.com
+ODOO_SH_SSH_USER=31140548
+ODOO_SH_SSH_KEY=~/.ssh/id_ed25519
+```
+
+Or via `claude mcp add`:
+
+```bash
+claude mcp add odoo-mycompany uvx odoo-sh-mcp \
+  -e ODOO_URL=https://mycompany.odoo.com \
+  -e ODOO_DB=mycompany \
+  -e ODOO_API_KEY=your_key_here \
+  -e ODOO_USERNAME=you@mycompany.com \
+  -e ODOO_SH_SSH_HOST=mycompany-main-staging-31140548.dev.odoo.com \
+  -e ODOO_SH_SSH_USER=31140548 \
+  -e ODOO_SH_SSH_KEY=~/.ssh/id_ed25519
+```
 
 ## Development
 

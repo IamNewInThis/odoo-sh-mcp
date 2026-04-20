@@ -18,6 +18,12 @@ jobs:
       - name: Install hatch
         run: pip install hatch
 
+      - name: Set version from tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          sed -i "s/^version = .*/version = \"$VERSION\"/" pyproject.toml
+          echo "Building version $VERSION"
+
       - name: Build package
         run: hatch build
 

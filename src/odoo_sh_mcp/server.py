@@ -12,7 +12,7 @@ from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
 
 from .client import OdooClient
-from .tools import orm, views, modules, logs
+from .tools import orm, views, modules, logs, ssh
 from .scaffold import generator
 
 load_dotenv()
@@ -349,6 +349,76 @@ TOOLS: list[Tool] = [
             "required": ["module_path", "base_xmlid", "fields_to_add"],
         },
     ),
+    # Tier 6 — SSH / Odoo.sh direct access
+    Tool(
+        name="ssh_exec",
+        description=(
+            "Execute a shell command on the Odoo.sh server via SSH. "
+            "Only use for operations not covered by other tools. "
+            "Never run destructive commands (rm -rf, DROP, etc.)."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "command": {"type": "string", "description": "Shell command to run"},
+            },
+            "required": ["command"],
+        },
+    ),
+    Tool(
+        name="ssh_upload_file",
+        description=(
+            "Upload a local file to the Odoo.sh server via SFTP. "
+            "Use to push module files to ~/src/user/<module>/ without a git commit."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "local_path": {
+                    "type": "string",
+                    "description": "Absolute local path to the file to upload",
+                },
+                "remote_path": {
+                    "type": "string",
+                    "description": "Absolute remote path, e.g. '/home/odoo/src/user/my_module/models/sale.py'",
+                },
+            },
+            "required": ["local_path", "remote_path"],
+        },
+    ),
+    Tool(
+        name="ssh_update_module",
+        description="Run 'odoo-update <module>' on the Odoo.sh server to apply code changes.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "module_name": {
+                    "type": "string",
+                    "description": "Technical module name, e.g. 'my_custom_module'",
+                }
+            },
+            "required": ["module_name"],
+        },
+    ),
+    Tool(
+        name="ssh_restart",
+        description="Restart Odoo.sh services via 'odoosh-restart'.",
+        inputSchema={"type": "object", "properties": {}},
+    ),
+    Tool(
+        name="ssh_read_log",
+        description="Read the last N lines of ~/logs/odoo.log from the Odoo.sh server.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "lines": {
+                    "type": "integer",
+                    "description": "Number of lines to read (default 100)",
+                    "default": 100,
+                }
+            },
+        },
+    ),
     # Tier 4 — Modules
     Tool(
         name="list_modules",
@@ -525,6 +595,24 @@ def _dispatch(client: OdooClient, name: str, args: dict[str, Any]) -> Any:
             limit=args.get("limit", 50),
             module=args.get("module"),
         )
+
+    # Tier 6 — SSH
+    if name in ("ssh_exec", "ssh_upload_file", "ssh_update_module", "ssh_restart", "ssh_read_log"):
+        ssh_host = os.environ.get("ODOO_SH_SSH_HOST", "")
+        ssh_user = os.environ.get("ODOO_SH_SSH_USER", "")
+        ssh_key = os.environ.get("ODOO_SH_SSH_KEY", "~/.ssh/id_ed25519")
+        if not ssh_host or not ssh_user:
+            raise ValueError("ODOO_SH_SSH_HOST and ODOO_SH_SSH_USER must be set in .env")
+        if name == "ssh_exec":
+            return ssh.ssh_exec(ssh_host, ssh_user, ssh_key, args["command"])
+        if name == "ssh_upload_file":
+            return ssh.ssh_upload_file(ssh_host, ssh_user, ssh_key, args["local_path"], args["remote_path"])
+        if name == "ssh_update_module":
+            return ssh.ssh_update_module(ssh_host, ssh_user, ssh_key, args["module_name"])
+        if name == "ssh_restart":
+            return ssh.ssh_restart(ssh_host, ssh_user, ssh_key)
+        if name == "ssh_read_log":
+            return ssh.ssh_read_log(ssh_host, ssh_user, ssh_key, lines=args.get("lines", 100))
 
     raise ValueError(f"Unknown tool: {name}")
 
