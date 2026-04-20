@@ -96,8 +96,8 @@ claude mcp add odoo-mycompany uvx odoo-sh-mcp \
   -e ODOO_DB=mycompany \
   -e ODOO_API_KEY=your_key_here \
   -e ODOO_USERNAME=you@mycompany.com \
-  -e ODOO_SH_SSH_HOST=mycompany-main-staging-31140548.dev.odoo.com \
-  -e ODOO_SH_SSH_USER=31140548 \
+  -e ODOO_SH_SSH_HOST=mycompany-main-staging-12345678.dev.odoo.com \
+  -e ODOO_SH_SSH_USER=12345678 \
   -e ODOO_SH_SSH_KEY=~/.ssh/id_ed25519
 ```
 
@@ -260,7 +260,7 @@ ssh-add "$env:USERPROFILE\.ssh\id_ed25519"
 In the Odoo.sh dashboard, click your branch → **Connect** → copy the SSH command. It looks like:
 
 ```
-ssh 31140548@mycompany-main-staging-31140548.dev.odoo.com
+ssh 12345678@mycompany-main-staging-12345678.dev.odoo.com
 ```
 
 The number before `@` is the `ODOO_SH_SSH_USER`, the hostname after is `ODOO_SH_SSH_HOST`.
@@ -268,8 +268,8 @@ The number before `@` is the `ODOO_SH_SSH_USER`, the hostname after is `ODOO_SH_
 **5. Add to your `.env` or MCP config**
 
 ```env
-ODOO_SH_SSH_HOST=mycompany-main-staging-31140548.dev.odoo.com
-ODOO_SH_SSH_USER=31140548
+ODOO_SH_SSH_HOST=mycompany-main-staging-12345678.dev.odoo.com
+ODOO_SH_SSH_USER=12345678
 ODOO_SH_SSH_KEY=~/.ssh/id_ed25519
 ```
 
