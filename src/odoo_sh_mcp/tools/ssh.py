@@ -19,7 +19,10 @@ def _ssh_args(host: str, user: str, key_path: str) -> list[str]:
 
 def ssh_exec(host: str, user: str, key_path: str, command: str) -> dict:
     args = _ssh_args(host, user, key_path) + [command]
-    result = subprocess.run(args, capture_output=True, text=True, timeout=120)
+    try:
+        result = subprocess.run(args, capture_output=True, text=True, timeout=120)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"SSH command timed out after 120s: {command}")
     return {
         "exit_code": result.returncode,
         "stdout": result.stdout,

@@ -76,7 +76,7 @@ pip install odoo-sh-mcp
 
 ## Configuration
 
-### Single instance
+### Single instance (XML-RPC only)
 
 ```bash
 claude mcp add odoo-mycompany uvx odoo-sh-mcp \
@@ -86,9 +86,24 @@ claude mcp add odoo-mycompany uvx odoo-sh-mcp \
   -e ODOO_USERNAME=you@mycompany.com
 ```
 
+### Single instance (XML-RPC + SSH)
+
+Includes Tier 6 SSH tools for direct file upload and server commands:
+
+```bash
+claude mcp add odoo-mycompany uvx odoo-sh-mcp \
+  -e ODOO_URL=https://mycompany.odoo.com \
+  -e ODOO_DB=mycompany \
+  -e ODOO_API_KEY=your_key_here \
+  -e ODOO_USERNAME=you@mycompany.com \
+  -e ODOO_SH_SSH_HOST=mycompany-main-staging-31140548.dev.odoo.com \
+  -e ODOO_SH_SSH_USER=31140548 \
+  -e ODOO_SH_SSH_KEY=~/.ssh/id_ed25519
+```
+
 ### Multi-instance
 
-Ejecuta el comando una vez por cada instancia:
+Run once per instance:
 
 ```bash
 claude mcp add odoo-company-a uvx odoo-sh-mcp \
@@ -104,7 +119,7 @@ claude mcp add odoo-company-b uvx odoo-sh-mcp \
   -e ODOO_USERNAME=you@company-b.com
 ```
 
-O edita directamente `.claude/mcp.json`:
+Or edit `.claude/mcp.json` directly:
 
 ```jsonc
 {
@@ -116,7 +131,10 @@ O edita directamente `.claude/mcp.json`:
         "ODOO_URL": "https://company-a.odoo.com",
         "ODOO_DB": "company-a",
         "ODOO_API_KEY": "xxx",
-        "ODOO_USERNAME": "you@company-a.com"
+        "ODOO_USERNAME": "you@company-a.com",
+        "ODOO_SH_SSH_HOST": "company-a-main-staging-XXXXX.dev.odoo.com",
+        "ODOO_SH_SSH_USER": "XXXXX",
+        "ODOO_SH_SSH_KEY": "~/.ssh/id_ed25519"
       }
     },
     "odoo-company-b": {
@@ -126,7 +144,10 @@ O edita directamente `.claude/mcp.json`:
         "ODOO_URL": "https://company-b.odoo.com",
         "ODOO_DB": "company-b",
         "ODOO_API_KEY": "yyy",
-        "ODOO_USERNAME": "you@company-b.com"
+        "ODOO_USERNAME": "you@company-b.com",
+        "ODOO_SH_SSH_HOST": "company-b-main-staging-YYYYY.dev.odoo.com",
+        "ODOO_SH_SSH_USER": "YYYYY",
+        "ODOO_SH_SSH_KEY": "~/.ssh/id_ed25519"
       }
     }
   }
@@ -152,23 +173,89 @@ O edita directamente `.claude/mcp.json`:
 
 SSH tools let Claude upload files and run commands directly on the Odoo.sh server, bypassing git commits for fast iteration.
 
-**1. Add your public key to Odoo.sh**
+**1. Generate an SSH key (if you don't have one)**
+
+<details>
+<summary>macOS / Linux</summary>
+
+```bash
+ssh-keygen -t ed25519 -C "your-name-odoo-sh"
+```
+
+Press Enter to accept the default path (`~/.ssh/id_ed25519`).
+
+</details>
+
+<details>
+<summary>Windows</summary>
+
+Open **PowerShell** or **Git Bash** and run:
+
+```powershell
+ssh-keygen -t ed25519 -C "your-name-odoo-sh"
+```
+
+The key is saved to `C:\Users\YourName\.ssh\id_ed25519`. In the `.env` use forward slashes to avoid escape issues:
+
+```env
+ODOO_SH_SSH_KEY=C:/Users/YourName/.ssh/id_ed25519
+```
+
+> Windows 10/11 include OpenSSH by default. If `ssh-keygen` is not found, enable it via **Settings → Apps → Optional Features → OpenSSH Client**.
+
+</details>
+
+**2. Add your public key to Odoo.sh**
 
 Go to `https://www.odoo.sh` → click your avatar (top right) → **Change My Profile** → **SSH Keys** → paste the output of:
 
 ```bash
+# macOS / Linux
 cat ~/.ssh/id_ed25519.pub
+
+# Windows (PowerShell)
+Get-Content "$env:USERPROFILE\.ssh\id_ed25519.pub"
 ```
 
 > Odoo.sh only accepts `ssh-rsa` and `ssh-ed25519` keys.
 
-**2. Load your key into the macOS SSH agent**
+**3. Load your key into the SSH agent**
+
+<details>
+<summary>macOS</summary>
 
 ```bash
 ssh-add --apple-use-keychain ~/.ssh/id_ed25519
 ```
 
-**3. Find your branch SSH host**
+This saves the passphrase to the macOS Keychain so you never have to re-enter it.
+
+</details>
+
+<details>
+<summary>Linux</summary>
+
+```bash
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/id_ed25519
+```
+
+</details>
+
+<details>
+<summary>Windows</summary>
+
+Enable and start the SSH agent service (run PowerShell as Administrator):
+
+```powershell
+Set-Service -Name ssh-agent -StartupType Automatic
+Start-Service ssh-agent
+ssh-add "$env:USERPROFILE\.ssh\id_ed25519"
+```
+
+</details>
+
+**4. Find your branch SSH host**
 
 In the Odoo.sh dashboard, click your branch → **Connect** → copy the SSH command. It looks like:
 
@@ -176,7 +263,9 @@ In the Odoo.sh dashboard, click your branch → **Connect** → copy the SSH com
 ssh 31140548@mycompany-main-staging-31140548.dev.odoo.com
 ```
 
-**4. Add to your `.env` or MCP config**
+The number before `@` is the `ODOO_SH_SSH_USER`, the hostname after is `ODOO_SH_SSH_HOST`.
+
+**5. Add to your `.env` or MCP config**
 
 ```env
 ODOO_SH_SSH_HOST=mycompany-main-staging-31140548.dev.odoo.com
@@ -184,18 +273,7 @@ ODOO_SH_SSH_USER=31140548
 ODOO_SH_SSH_KEY=~/.ssh/id_ed25519
 ```
 
-Or via `claude mcp add`:
-
-```bash
-claude mcp add odoo-mycompany uvx odoo-sh-mcp \
-  -e ODOO_URL=https://mycompany.odoo.com \
-  -e ODOO_DB=mycompany \
-  -e ODOO_API_KEY=your_key_here \
-  -e ODOO_USERNAME=you@mycompany.com \
-  -e ODOO_SH_SSH_HOST=mycompany-main-staging-31140548.dev.odoo.com \
-  -e ODOO_SH_SSH_USER=31140548 \
-  -e ODOO_SH_SSH_KEY=~/.ssh/id_ed25519
-```
+Then use the full `claude mcp add` command from the [Single instance (XML-RPC + SSH)](#single-instance-xml-rpc--ssh) section above.
 
 ## Development
 
