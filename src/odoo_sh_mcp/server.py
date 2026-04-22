@@ -352,6 +352,21 @@ TOOLS: list[Tool] = [
     ),
     # Tier 6 — SSH / Odoo.sh direct access
     Tool(
+        name="ssh_exec",
+        description=(
+            "Execute a shell command on the Odoo.sh server via SSH. "
+            "Only use for operations not covered by other tools. "
+            "Never run destructive commands (rm -rf, DROP, etc.)."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "command": {"type": "string", "description": "Shell command to run"},
+            },
+            "required": ["command"],
+        },
+    ),
+    Tool(
         name="ssh_read_log",
         description="Read the last N lines of ~/logs/odoo.log from the Odoo.sh server.",
         inputSchema={
@@ -543,12 +558,14 @@ def _dispatch(client: OdooClient, name: str, args: dict[str, Any]) -> Any:
         )
 
     # Tier 6 — SSH
-    if name == "ssh_read_log":
+    if name in ("ssh_exec", "ssh_read_log"):
         ssh_host = os.environ.get("ODOO_SH_SSH_HOST", "")
         ssh_user = os.environ.get("ODOO_SH_SSH_USER", "")
         ssh_key = os.environ.get("ODOO_SH_SSH_KEY", "~/.ssh/id_ed25519")
         if not ssh_host or not ssh_user:
             raise ValueError("ODOO_SH_SSH_HOST and ODOO_SH_SSH_USER must be set in .env")
+        if name == "ssh_exec":
+            return ssh.ssh_exec(ssh_host, ssh_user, ssh_key, args["command"])
         return ssh.ssh_read_log(ssh_host, ssh_user, ssh_key, lines=args.get("lines", 100))
 
     raise ValueError(f"Unknown tool: {name}")
