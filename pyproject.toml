@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "odoo-sh-mcp"
-version = "0.4.1"
+version = "0.4.2"
 description = "MCP server for Odoo SH — exposes ORM metadata, views, modules and logs to Claude Code via XML-RPC"
 readme = "README.md"
 license = { text = "MPL-2.0" }
